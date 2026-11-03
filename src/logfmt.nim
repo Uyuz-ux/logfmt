@@ -233,7 +233,7 @@ iterator records*(text: string): seq[LogfmtPair] {.raises: [LogfmtError].} =
   ##   for rec in records(logFileText):
   ##     echo rec.getOrDefault("level")
   for line in text.splitLines():
-    if line.strip().len == 0:
+    if strutils.strip(line).len == 0:
       continue
     yield decode(line)
 
@@ -247,7 +247,7 @@ iterator recordsLenient*(text: string): seq[LogfmtPair] =
   ##     if rec.getOrDefault("level") == "error":
   ##       echo rec
   for line in text.splitLines():
-    if line.strip().len == 0:
+    if strutils.strip(line).len == 0:
       continue
     yield decodeLenient(line)
 
