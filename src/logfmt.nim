@@ -223,3 +223,37 @@ proc getOrDefault*(fields: seq[LogfmtPair], key: string, default = ""): string =
     if pair.key == key:
       return pair.value
   result = default
+
+iterator records*(text: string): seq[LogfmtPair] {.raises: [LogfmtError].} =
+  ## Iterate over a multi-line logfmt text, decoding every non-empty line
+  ## into one record (a `seq[LogfmtPair]`). Whitespace-only lines are
+  ## skipped. Raises `LogfmtError` on the first structurally invalid line —
+  ## use `recordsLenient` to skip bad lines instead.
+  ##
+  ##   for rec in records(logFileText):
+  ##     echo rec.getOrDefault("level")
+  for line in text.splitLines():
+    if line.strip().len == 0:
+      continue
+    yield decode(line)
+
+iterator recordsLenient*(text: string): seq[LogfmtPair] =
+  ## Like `records`, but silently skips lines that are not valid logfmt.
+  ## Useful for real-world log files that mix records with banners, stack
+  ## traces or separator lines. Valid `key=value` fragments inside a broken
+  ## line are still recovered (see `decodeLenient`).
+  ##
+  ##   for rec in recordsLenient(messyLogText):
+  ##     if rec.getOrDefault("level") == "error":
+  ##       echo rec
+  for line in text.splitLines():
+    if line.strip().len == 0:
+      continue
+    yield decodeLenient(line)
+
+proc decodeLines*(text: string): seq[seq[LogfmtPair]] {.raises: [LogfmtError].} =
+  ## Eager variant of `records`: decode every non-empty line of a multi-line
+  ## text and return all records. Raises `LogfmtError` on invalid input.
+  result = @[]
+  for rec in records(text):
+    result.add(rec)

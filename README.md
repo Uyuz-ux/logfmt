@@ -16,7 +16,12 @@ echo encode([field("level", "warn"), field("disk_free", 2.5), field("critical", 
 # Decode
 let fields = decode("level=info msg=\"user 42 logged in\" count=42")
 echo fields.getOrDefault("msg")   # user 42 logged in
-echo decodeTable(fields = "a=1 a=2")["a"]  # 2 (last wins)
+echo decodeTable("a=1 a=2")["a"]  # 2 (last wins)
+
+# Multi-record: process a whole log file, line by line
+for rec in recordsLenient(messyLogText):
+  if rec.getOrDefault("level") == "error":
+    echo rec
 ```
 
 ## Why logfmt?
@@ -28,6 +33,7 @@ Structured logs that stay readable by humans: `grep`-able, one event per line, n
 - **Zero dependencies** — pure Nim standard library.
 - **Spec-compliant quoting** — values containing whitespace, `=` or `"` are quoted; embedded quotes, backslashes and control characters are escaped, matching the behavior of Go's `go-logfmt`.
 - **Strict and lenient decoding** — `decode` raises `LogfmtError` on malformed input; `decodeLenient` salvages valid pairs from mixed content such as stack traces interleaved with structured lines.
+- **Multi-record processing** — iterate over a whole log file with `records` / `recordsLenient`, or collect everything eagerly with `decodeLines`. Whitespace-only lines (banners, separators, blank lines) are skipped.
 - **Ordered results** — `decode` preserves key order and duplicates; `decodeTable` collapses duplicates with last-value-wins.
 - **Typed fields** — the `field` helper converts ints, floats, bools and anything with a sensible `$`.
 
@@ -52,6 +58,9 @@ requires "logfmt >= 0.1.0"
 | `decode(line: string): seq[LogfmtPair]` | Strict decode; raises `LogfmtError` |
 | `decodeLenient(line: string): seq[LogfmtPair]` | Best-effort decode; skips malformed fragments |
 | `decodeTable(line: string): OrderedTable[string, string]` | Decode with last-value-wins semantics |
+| `records(text: string): iterator` | Iterate over a multi-line text, one record per line; raises on invalid lines |
+| `recordsLenient(text: string): iterator` | Iterate over a multi-line text; skips invalid lines |
+| `decodeLines(text: string): seq[seq[LogfmtPair]]` | Eager variant of `records` |
 | `fields.getOrDefault(key, default = "")` | First value for `key`, or the default |
 
 ## Example
