@@ -1,0 +1,8 @@
+nimcache/
+csources_*/
+tests/tlogfmt
+examples/parse_log_file
+examples/server_log
+readme_check
+src/htmldocs/
+*.exe

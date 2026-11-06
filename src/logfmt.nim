@@ -257,3 +257,24 @@ proc decodeLines*(text: string): seq[seq[LogfmtPair]] {.raises: [LogfmtError].} 
   result = @[]
   for rec in records(text):
     result.add(rec)
+
+proc encodeLines*(records: openArray[seq[LogfmtPair]]): string =
+  ## Encode multiple records into a multi-line logfmt text — the inverse of
+  ## `decodeLines`. Each record becomes one line, joined with newlines (no
+  ## trailing newline); empty records are skipped, so the round trip
+  ## `decodeLines(encodeLines(recs)) == recs` holds whenever `recs` contains
+  ## no empty records. Raises `LogfmtError` if any pair has an empty key
+  ## (see `encode`).
+  ##
+  ##   let text = encodeLines([@[field("level", "info")],
+  ##                           @[field("level", "error"), field("retries", 3)]])
+  ##   ## level=info\nlevel=error retries=3
+  result = newStringOfCap(64)
+  var first = true
+  for rec in records:
+    if rec.len == 0:
+      continue
+    if not first:
+      result.add('\n')
+    first = false
+    result.add(encode(rec))

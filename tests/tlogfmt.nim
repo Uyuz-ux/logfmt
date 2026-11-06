@@ -176,3 +176,36 @@ suite "decodeLines":
   test "raises on invalid input":
     expect LogfmtError:
       discard decodeLines("a=1\nbroken\n")
+
+suite "encodeLines":
+  test "encodes one record per line":
+    let text = encodeLines([
+      @[field("level", "info")],
+      @[field("level", "error"), field("retries", 3)],
+    ])
+    check(text == "level=info\nlevel=error retries=3")
+
+  test "single record matches encode":
+    let rec = @[("level", "info"), ("msg", "user 42 logged in"), ("count", "42")]
+    check(encodeLines([rec]) == encode(rec))
+
+  test "round trip via decodeLines":
+    let recs = @[
+      @[("level", "info"), ("msg", "hello world")],
+      @[("msg", "line1\nline2\tend"), ("q", "she said \"hi\" and left")],
+      @[("n", "42"), ("dup", "1"), ("dup", "2")],
+    ]
+    check(decodeLines(encodeLines(recs)) == recs)
+
+  test "full text round trip":
+    let text = "level=info count=42\nmsg=\"multi word value\"\na=1 a=2"
+    let recs = decodeLines(text)
+    check(decodeLines(encodeLines(recs)) == recs)
+
+  test "empty records are skipped":
+    check(encodeLines([@[("a", "1")], newSeq[LogfmtPair]()]) == "a=1")
+    check(encodeLines(newSeq[seq[LogfmtPair]]()) == "")
+
+  test "raises on empty key":
+    expect LogfmtError:
+      discard encodeLines([@[("", "value")]])

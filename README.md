@@ -22,6 +22,12 @@ echo decodeTable("a=1 a=2")["a"]  # 2 (last wins)
 for rec in recordsLenient(messyLogText):
   if rec.getOrDefault("level") == "error":
     echo rec
+
+# Multi-record encoding: build a log file from records
+discard encodeLines([
+  @[field("level", "info"), field("msg", "started")],
+  @[field("level", "error"), field("retries", 3)],
+])
 ```
 
 ## Why logfmt?
@@ -33,7 +39,7 @@ Structured logs that stay readable by humans: `grep`-able, one event per line, n
 - **Zero dependencies** — pure Nim standard library.
 - **Spec-compliant quoting** — values containing whitespace, `=` or `"` are quoted; embedded quotes, backslashes and control characters are escaped, matching the behavior of Go's `go-logfmt`.
 - **Strict and lenient decoding** — `decode` raises `LogfmtError` on malformed input; `decodeLenient` salvages valid pairs from mixed content such as stack traces interleaved with structured lines.
-- **Multi-record processing** — iterate over a whole log file with `records` / `recordsLenient`, or collect everything eagerly with `decodeLines`. Whitespace-only lines (banners, separators, blank lines) are skipped.
+- **Multi-record processing** — iterate over a whole log file with `records` / `recordsLenient`, collect everything eagerly with `decodeLines`, or build multi-record text with `encodeLines` (the inverse of `decodeLines`). Whitespace-only lines (banners, separators, blank lines) are skipped.
 - **Ordered results** — `decode` preserves key order and duplicates; `decodeTable` collapses duplicates with last-value-wins.
 - **Typed fields** — the `field` helper converts ints, floats, bools and anything with a sensible `$`.
 
@@ -61,6 +67,7 @@ requires "logfmt >= 0.1.0"
 | `records(text: string): iterator` | Iterate over a multi-line text, one record per line; raises on invalid lines |
 | `recordsLenient(text: string): iterator` | Iterate over a multi-line text; skips invalid lines |
 | `decodeLines(text: string): seq[seq[LogfmtPair]]` | Eager variant of `records` |
+| `encodeLines(records: openArray[seq[LogfmtPair]]): string` | Encode records into multi-line text; inverse of `decodeLines` |
 | `fields.getOrDefault(key, default = "")` | First value for `key`, or the default |
 
 ## Example
