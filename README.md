@@ -69,6 +69,7 @@ requires "logfmt >= 0.1.0"
 | `decodeLines(text: string): seq[seq[LogfmtPair]]` | Eager variant of `records` |
 | `encodeLines(records: openArray[seq[LogfmtPair]]): string` | Encode records into multi-line text; inverse of `decodeLines` |
 | `fields.getOrDefault(key, default = "")` | First value for `key`, or the default |
+| `fields.getTyped(key, default)` | First value for `key` converted to `T` (bool / int / uint / float / string — T is inferred from `default`); the default is returned when the key is missing or the value does not parse |
 
 ## Example
 

@@ -24,6 +24,9 @@
 ##   let fields = decode("level=info msg=\"user 42 logged in\" count=42")
 ##   assert fields == @[("level", "info"), ("msg", "user 42 logged in"), ("count", "42")]
 ##
+##   # Typed access on decoded fields
+##   assert fields.getTyped("count", 0) == 42
+##
 ##   # Typed convenience encoding
 ##   echo encodeTyped([("level", "info"), ("count", 42), ("ok", true)])
 
@@ -223,6 +226,44 @@ proc getOrDefault*(fields: seq[LogfmtPair], key: string, default = ""): string =
     if pair.key == key:
       return pair.value
   result = default
+
+proc getTyped*[T: bool | SomeInteger | SomeFloat | string](
+    fields: seq[LogfmtPair]; key: string; default: T): T =
+  ## Return the first value stored under `key` converted to `T`, or
+  ## `default` when the key is missing or the value does not parse.
+  ##
+  ## Conversion uses the std parsers: `parseBool` for bools, `parseInt`
+  ## for signed integers, `parseUInt` for unsigned integers (so
+  ## `uint64.high` round-trips), and `parseFloat` for floats. A `string`
+  ## T returns the raw value unchanged, so `getTyped[string]` behaves
+  ## like `getOrDefault`. Duplicate keys follow the first-wins rule of
+  ## `getOrDefault`.
+  ##
+  ##   let fields = decode("level=info count=42 ok=true")
+  ##   doAssert fields.getTyped("count", 0) == 42
+  ##   doAssert fields.getTyped("ok", false) == true
+  ##   doAssert fields.getTyped("missing", 7) == 7
+  ##
+  ## The target type is inferred from `default`; for an explicit
+  ## instantiation use the call form `getTyped[int](fields, "count", 0)`
+  ## (method-call syntax with an explicit generic parameter, e.g.
+  ## `fields.getTyped[int](...)`, is not valid Nim).
+  for pair in fields:
+    if pair.key == key:
+      try:
+        when T is bool:
+          return parseBool(pair.value)
+        elif T is SomeUnsignedInt:
+          return T(parseUInt(pair.value))
+        elif T is SomeSignedInt:
+          return T(parseInt(pair.value))
+        elif T is SomeFloat:
+          return T(parseFloat(pair.value))
+        elif T is string:
+          return pair.value
+      except ValueError:
+        return default
+  return default
 
 iterator records*(text: string): seq[LogfmtPair] {.raises: [LogfmtError].} =
   ## Iterate over a multi-line logfmt text, decoding every non-empty line

@@ -209,3 +209,39 @@ suite "encodeLines":
   test "raises on empty key":
     expect LogfmtError:
       discard encodeLines([@[("", "value")]])
+
+suite "getTyped":
+  test "typed access on a decoded record":
+    let f = decode("level=info count=42 ratio=0.5 ok=true")
+    check f.getTyped("level", "?") == "info"
+    check f.getTyped("count", 0) == 42
+    check f.getTyped("ratio", 0.0) == 0.5
+    check f.getTyped("ok", false) == true
+
+  test "missing key yields the default":
+    let f = decode("a=1")
+    check f.getTyped("missing", 7) == 7
+    check f.getTyped("missing", "d") == "d"
+    check f.getTyped("missing", true) == true
+    check f.getTyped("missing", 1.5) == 1.5
+
+  test "unparseable value yields the default":
+    let f = decode("count=abc ok=maybe ratio=xyz")
+    check f.getTyped("count", -1) == -1
+    check f.getTyped("ok", false) == false
+    check f.getTyped("ratio", 9.9) == 9.9
+
+  test "first occurrence wins on duplicate keys":
+    let f = decode("count=1 count=2")
+    check f.getTyped("count", 0) == 1
+
+  test "unsigned and narrow signed types parse correctly":
+    let f = decode("big=18446744073709551615 small=250 neg=-7")
+    check f.getTyped("big", 0'u64) == uint64.high
+    check f.getTyped("small", 0'u8) == 250'u8
+    check f.getTyped("neg", 0'i8) == -7'i8
+
+  test "quoted values parse after unescaping":
+    let f = decode("name=\"hello world\" num=\"42\"")
+    check f.getTyped("name", "") == "hello world"
+    check f.getTyped("num", 0) == 42
